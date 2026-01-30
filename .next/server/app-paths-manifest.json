@@ -1,0 +1,6 @@
+{
+  "/(tabs)/page": "app/(tabs)/page.js",
+  "/(tabs)/profile/page": "app/(tabs)/profile/page.js",
+  "/(tabs)/insights/page": "app/(tabs)/insights/page.js",
+  "/(tabs)/record/page": "app/(tabs)/record/page.js"
+}
