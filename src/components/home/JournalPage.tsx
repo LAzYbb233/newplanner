@@ -10,9 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2, Plus, Camera, X } from "lucide-react";
+import { Trash2, Plus, Camera, X, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { uploadImageFromBlobUrl } from "@/lib/supabase";
 
 interface JournalPageProps {
   date: string; // YYYY-MM-DD
@@ -104,8 +105,10 @@ export function JournalPage({ date }: JournalPageProps) {
   // Mood record state
   const [showMoodInput, setShowMoodInput] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedEmoji, setSelectedEmoji] = useState<string>("");
   const [moodNote, setMoodNote] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Daily note state
@@ -166,23 +169,48 @@ export function JournalPage({ date }: JournalPageProps) {
     if (file) {
       const url = URL.createObjectURL(file);
       setSelectedImage(url);
+      setSelectedFile(file);
     }
   }, []);
   
-  const handleSaveMood = useCallback(() => {
+  const handleSaveMood = useCallback(async () => {
     if (selectedImage && selectedEmoji) {
-      // 使用当前页面日期而非 Date.now()
-      const pageDate = new Date(date + "T12:00:00"); // 使用中午12点作为默认时间
-      addRecord({
-        imageUrl: selectedImage,
-        timestamp: pageDate.getTime(),
-        emoji: selectedEmoji,
-        note: moodNote.trim() || undefined,
-      });
-      setSelectedImage(null);
-      setSelectedEmoji("");
-      setMoodNote("");
-      setShowMoodInput(false);
+      setIsUploading(true);
+      
+      try {
+        // 尝试上传到云存储
+        let finalImageUrl = selectedImage;
+        
+        // 如果是 blob URL，尝试上传到 Supabase Storage
+        if (selectedImage.startsWith("blob:")) {
+          const uploadedUrl = await uploadImageFromBlobUrl(selectedImage);
+          if (uploadedUrl) {
+            finalImageUrl = uploadedUrl;
+            // 清理 blob URL
+            URL.revokeObjectURL(selectedImage);
+          }
+          // 如果上传失败，继续使用 blob URL（本地模式）
+        }
+        
+        // 使用当前页面日期而非 Date.now()
+        const pageDate = new Date(date + "T12:00:00"); // 使用中午12点作为默认时间
+        await addRecord({
+          imageUrl: finalImageUrl,
+          timestamp: pageDate.getTime(),
+          emoji: selectedEmoji,
+          note: moodNote.trim() || undefined,
+        });
+        
+        setSelectedImage(null);
+        setSelectedFile(null);
+        setSelectedEmoji("");
+        setMoodNote("");
+        setShowMoodInput(false);
+      } catch (error) {
+        console.error("保存心情记录失败:", error);
+      } finally {
+        setIsUploading(false);
+      }
     }
   }, [selectedImage, selectedEmoji, moodNote, date, addRecord]);
   
@@ -191,6 +219,7 @@ export function JournalPage({ date }: JournalPageProps) {
       URL.revokeObjectURL(selectedImage);
     }
     setSelectedImage(null);
+    setSelectedFile(null);
     setSelectedEmoji("");
     setMoodNote("");
     setShowMoodInput(false);
@@ -410,12 +439,19 @@ export function JournalPage({ date }: JournalPageProps) {
               <div className="flex gap-2">
                 <Button
                   onClick={handleSaveMood}
-                  disabled={!selectedImage || !selectedEmoji}
+                  disabled={!selectedImage || !selectedEmoji || isUploading}
                   className="flex-1"
                 >
-                  保存心情
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      上传中...
+                    </>
+                  ) : (
+                    "保存心情"
+                  )}
                 </Button>
-                <Button variant="ghost" onClick={handleCancelMood}>
+                <Button variant="ghost" onClick={handleCancelMood} disabled={isUploading}>
                   取消
                 </Button>
               </div>
