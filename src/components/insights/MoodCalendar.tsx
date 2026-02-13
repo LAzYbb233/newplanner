@@ -1,26 +1,27 @@
 "use client";
 
 import { useMemo } from "react";
-import type { MoodRecord, MoodType } from "@/types/mood";
+import type { MoodRecord } from "@/types/mood";
 import { cn } from "@/lib/utils";
 
-const moodToDotColor: Record<MoodType, string> = {
-  Happy: "bg-amber-500",
-  Calm: "bg-sky-500",
-  Anxious: "bg-slate-500",
-  Sad: "bg-violet-500",
-  Energetic: "bg-orange-500",
+// Emoji 到颜色的映射
+const emojiToDotColor: Record<string, string> = {
+  "😊": "bg-amber-500",
+  "😌": "bg-sky-500",
+  "😢": "bg-violet-500",
+  "😰": "bg-slate-500",
+  "💪": "bg-orange-500",
 };
 
-function getDominantMood(records: MoodRecord[]): MoodType {
-  const counts: Partial<Record<MoodType, number>> = {};
+function getDominantEmoji(records: MoodRecord[]): string {
+  const counts: Record<string, number> = {};
   let max = 0;
-  let dominant: MoodType = "Calm";
+  let dominant = "😊";
   for (const r of records) {
-    counts[r.mood] = (counts[r.mood] ?? 0) + 1;
-    if (counts[r.mood]! > max) {
-      max = counts[r.mood]!;
-      dominant = r.mood;
+    counts[r.emoji] = (counts[r.emoji] ?? 0) + 1;
+    if (counts[r.emoji]! > max) {
+      max = counts[r.emoji]!;
+      dominant = r.emoji;
     }
   }
   return dominant;
@@ -78,14 +79,11 @@ export function MoodCalendar({
               {d ?? ""}
             </span>
             {d != null && recordsByDay[d]?.length ? (
-              <div
-                className={cn(
-                  "h-2 w-2 rounded-full",
-                  moodToDotColor[getDominantMood(recordsByDay[d])]
-                )}
-              />
+              <div className="flex items-center justify-center h-4 w-4 text-xs">
+                {getDominantEmoji(recordsByDay[d])}
+              </div>
             ) : (
-              <div className="h-2 w-2" />
+              <div className="h-4 w-4" />
             )}
           </div>
         ))}

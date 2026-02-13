@@ -1,40 +1,18 @@
-export type MoodType =
-  | "Happy"
-  | "Calm"
-  | "Sad"
-  | "Anxious"
-  | "Energetic";
-
-/** UI 展示用：Tired -> Sad, Excited -> Energetic */
-export const MOOD_UI_OPTIONS = [
-  "Happy",
-  "Calm",
-  "Anxious",
-  "Tired",
-  "Excited",
-] as const;
-export type MoodUIOption = (typeof MOOD_UI_OPTIONS)[number];
-
-export function moodUIOptionToType(ui: MoodUIOption): MoodType {
-  if (ui === "Tired") return "Sad";
-  if (ui === "Excited") return "Energetic";
-  return ui as MoodType;
-}
-
-export function moodTypeToUIOption(mood: MoodType): MoodUIOption {
-  if (mood === "Sad") return "Tired";
-  if (mood === "Energetic") return "Excited";
-  return mood as MoodUIOption;
-}
-
 export interface MoodRecord {
   id: string;
-  imageUrl: string;
+  imageUrl: string; // 用户上传的图片（blob URL 或 base64）
   timestamp: number;
-  location?: string;
-  tags: string[];
-  mood: MoodType;
-  moodIntensity: number; // 1-10
-  aiSummary: string;
-  userNote?: string;
+  emoji: string; // 预定义 emoji，如 "😊" "😢" "😰" 等
+  note?: string; // 可选文字备注
 }
+
+// 预定义情绪 emoji（对应原 MoodType）
+export const MOOD_EMOJIS = {
+  Happy: "😊",
+  Calm: "😌",
+  Sad: "😢",
+  Anxious: "😰",
+  Energetic: "💪",
+} as const;
+
+export type MoodEmojiKey = keyof typeof MOOD_EMOJIS;
