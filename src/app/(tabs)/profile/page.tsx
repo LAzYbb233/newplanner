@@ -24,7 +24,7 @@ export default function ProfilePage() {
       initializeChat();
       initialized.current = true;
     }
-  }, []);
+  }, [initializeChat]);
   
   const handleSendMessage = async (message: string) => {
     await sendMessage(message);
