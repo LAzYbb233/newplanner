@@ -30,9 +30,17 @@ const config: Config = {
           foreground: "hsl(var(--accent-foreground))",
         },
         ring: "hsl(var(--ring))",
+        "content-bg": "hsl(var(--content-bg))",
+        "accent-mint": "hsl(var(--accent-mint))",
+        "accent-lavender": "hsl(var(--accent-lavender))",
+        "accent-cream": "hsl(var(--accent-cream))",
       },
       padding: {
         safe: "env(safe-area-inset-bottom, 0px)",
+      },
+      borderRadius: {
+        "2xl": "1rem",
+        "3xl": "1.5rem",
       },
     },
   },

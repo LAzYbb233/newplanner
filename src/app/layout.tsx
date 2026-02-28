@@ -24,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className={inter.className}>
-        <div className="min-h-screen bg-background md:mx-auto md:flex md:max-w-md md:flex-col md:shadow-xl">
+        <div className="min-h-screen bg-background">
           {children}
         </div>
       </body>

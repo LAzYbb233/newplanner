@@ -5,6 +5,8 @@ import { useJournalStore } from "@/store/journalStore";
 import type { MoodRecord } from "@/types/mood";
 import { MOOD_EMOJIS } from "@/types/mood";
 import { sortSchedules } from "@/types/schedule";
+import type { Sticker } from "@/types/sticker";
+import { createSticker } from "@/types/sticker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +16,7 @@ import { Trash2, Plus, Camera, X, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { uploadImageFromBlobUrl } from "@/lib/supabase";
+import { DraggableSticker } from "@/components/sticker";
 
 interface JournalPageProps {
   date: string; // YYYY-MM-DD
@@ -37,7 +40,7 @@ function formatDateHeader(dateStr: string): { year: string; monthDay: string; we
 
 function MoodRecordCard({ record, onDelete }: { record: MoodRecord; onDelete: (id: string) => void }) {
   return (
-    <div className="group relative flex gap-3 rounded-lg bg-amber-50/30 p-3">
+    <div className="group relative flex gap-3 rounded-2xl bg-accent-lavender/30 p-3">
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md">
         <Image
           src={record.imageUrl}
@@ -74,8 +77,12 @@ function MoodRecordCard({ record, onDelete }: { record: MoodRecord; onDelete: (i
   );
 }
 
+const MAX_STICKERS = 3;
+const STICKER_PROBABILITY = 1.0; // 测试阶段：100% 生成贴纸
+
 export function JournalPage({ date }: JournalPageProps) {
   const { year, monthDay, weekday } = formatDateHeader(date);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Store
   const schedules = useJournalStore((s) => s.schedules.filter((t) => t.date === date));
@@ -115,12 +122,31 @@ export function JournalPage({ date }: JournalPageProps) {
   const [noteContent, setNoteContent] = useState(dailyNote?.content || "");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Sticker state (local, per date)
+  const [stickersMap, setStickersMap] = useState<Record<string, Sticker[]>>({});
+  const stickers = stickersMap[date] || [];
+  const lastInputRef = useRef<{ schedule: string; note: string }>({ schedule: "", note: "" });
+  
   // Update note content when date changes
   useEffect(() => {
     setNoteContent(dailyNote?.content || "");
   }, [date, dailyNote?.content]);
   
-  // Debounced save for note
+  // Trigger sticker generation on input change
+  const maybeAddSticker = useCallback(() => {
+    const currentStickers = stickersMap[date] || [];
+    if (currentStickers.length >= MAX_STICKERS) return;
+    
+    if (Math.random() < STICKER_PROBABILITY) {
+      const newSticker = createSticker();
+      setStickersMap((prev) => ({
+        ...prev,
+        [date]: [...(prev[date] || []), newSticker],
+      }));
+    }
+  }, [date, stickersMap]);
+  
+  // Debounced save for note with sticker trigger
   const handleNoteChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setNoteContent(value);
@@ -131,8 +157,68 @@ export function JournalPage({ date }: JournalPageProps) {
     
     debounceTimerRef.current = setTimeout(() => {
       updateDailyNote(date, value);
+      
+      if (value.length > lastInputRef.current.note.length + 5) {
+        maybeAddSticker();
+      }
+      lastInputRef.current.note = value;
     }, 500);
-  }, [date, updateDailyNote]);
+  }, [date, updateDailyNote, maybeAddSticker]);
+  
+  // Schedule input change with sticker trigger
+  const handleScheduleContentChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setScheduleContent(value);
+    
+    if (value.length > lastInputRef.current.schedule.length + 3) {
+      maybeAddSticker();
+    }
+    lastInputRef.current.schedule = value;
+  }, [maybeAddSticker]);
+  
+  // Sticker handlers
+  const handleStickerPositionChange = useCallback((id: string, position: { x: number; y: number }) => {
+    setStickersMap((prev) => ({
+      ...prev,
+      [date]: (prev[date] || []).map((s) =>
+        s.id === id ? { ...s, position } : s
+      ),
+    }));
+  }, [date]);
+  
+  const handleStickerColorChange = useCallback((id: string, fillColor: string) => {
+    setStickersMap((prev) => ({
+      ...prev,
+      [date]: (prev[date] || []).map((s) =>
+        s.id === id ? { ...s, fillColor } : s
+      ),
+    }));
+  }, [date]);
+  
+  const handleStickerScaleChange = useCallback((id: string, scale: number) => {
+    setStickersMap((prev) => ({
+      ...prev,
+      [date]: (prev[date] || []).map((s) =>
+        s.id === id ? { ...s, scale } : s
+      ),
+    }));
+  }, [date]);
+  
+  const handleStickerRotationChange = useCallback((id: string, rotation: number) => {
+    setStickersMap((prev) => ({
+      ...prev,
+      [date]: (prev[date] || []).map((s) =>
+        s.id === id ? { ...s, rotation } : s
+      ),
+    }));
+  }, [date]);
+  
+  const handleStickerDelete = useCallback((id: string) => {
+    setStickersMap((prev) => ({
+      ...prev,
+      [date]: (prev[date] || []).filter((s) => s.id !== id),
+    }));
+  }, [date]);
   
   // Schedule handlers
   const handleAddSchedule = useCallback(() => {
@@ -148,6 +234,7 @@ export function JournalPage({ date }: JournalPageProps) {
       setScheduleEndTime("");
       setHasEndTime(false);
       setShowScheduleInput(false);
+      lastInputRef.current.schedule = "";
     }
   }, [date, scheduleContent, scheduleStartTime, scheduleEndTime, hasEndTime, addSchedule]);
   
@@ -178,22 +265,17 @@ export function JournalPage({ date }: JournalPageProps) {
       setIsUploading(true);
       
       try {
-        // 尝试上传到云存储
         let finalImageUrl = selectedImage;
         
-        // 如果是 blob URL，尝试上传到 Supabase Storage
         if (selectedImage.startsWith("blob:")) {
           const uploadedUrl = await uploadImageFromBlobUrl(selectedImage);
           if (uploadedUrl) {
             finalImageUrl = uploadedUrl;
-            // 清理 blob URL
             URL.revokeObjectURL(selectedImage);
           }
-          // 如果上传失败，继续使用 blob URL（本地模式）
         }
         
-        // 使用当前页面日期而非 Date.now()
-        const pageDate = new Date(date + "T12:00:00"); // 使用中午12点作为默认时间
+        const pageDate = new Date(date + "T12:00:00");
         await addRecord({
           imageUrl: finalImageUrl,
           timestamp: pageDate.getTime(),
@@ -226,9 +308,26 @@ export function JournalPage({ date }: JournalPageProps) {
   }, [selectedImage]);
   
   return (
-    <div className="flex h-full flex-col space-y-4 p-4 pb-6">
+    <div ref={containerRef} className="relative flex h-full flex-col space-y-4 p-4 pb-6 mx-auto max-w-2xl lg:py-8">
+      {/* Sticker Layer */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {stickers.map((sticker) => (
+          <div key={sticker.id} className="pointer-events-auto">
+            <DraggableSticker
+              sticker={sticker}
+              containerRef={containerRef as React.RefObject<HTMLDivElement>}
+              onPositionChange={handleStickerPositionChange}
+              onColorChange={handleStickerColorChange}
+              onScaleChange={handleStickerScaleChange}
+              onRotationChange={handleStickerRotationChange}
+              onDelete={handleStickerDelete}
+            />
+          </div>
+        ))}
+      </div>
+      
       {/* 日期标题 */}
-      <div className="text-center">
+      <div className="text-center relative z-0">
         <div className="flex items-baseline justify-center gap-1">
           <h2 className="text-2xl font-semibold">{year}</h2>
           <h2 className="text-3xl font-bold">{monthDay}</h2>
@@ -237,7 +336,7 @@ export function JournalPage({ date }: JournalPageProps) {
       </div>
       
       {/* 日程 */}
-      <Card className="border-dashed">
+      <Card className="relative z-0 overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">📅 日程</CardTitle>
         </CardHeader>
@@ -285,7 +384,7 @@ export function JournalPage({ date }: JournalPageProps) {
             <div className="space-y-2 rounded-md border p-3 bg-muted/20">
               <Input
                 value={scheduleContent}
-                onChange={(e) => setScheduleContent(e.target.value)}
+                onChange={handleScheduleContentChange}
                 onKeyDown={handleScheduleKeyPress}
                 placeholder="输入日程内容..."
                 className="h-9"
@@ -352,7 +451,7 @@ export function JournalPage({ date }: JournalPageProps) {
       </Card>
       
       {/* 心情记录 */}
-      <Card className="border-dashed">
+      <Card className="relative z-0 overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">💭 今日心情</CardTitle>
         </CardHeader>
@@ -367,7 +466,6 @@ export function JournalPage({ date }: JournalPageProps) {
           
           {showMoodInput ? (
             <div className="space-y-3 rounded-md border border-dashed p-3">
-              {/* 图片上传 */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -410,7 +508,6 @@ export function JournalPage({ date }: JournalPageProps) {
                 </div>
               )}
               
-              {/* Emoji 选择 */}
               <div className="flex gap-2 justify-center">
                 {Object.entries(MOOD_EMOJIS).map(([key, emoji]) => (
                   <button
@@ -428,14 +525,12 @@ export function JournalPage({ date }: JournalPageProps) {
                 ))}
               </div>
               
-              {/* 备注 */}
               <Input
                 placeholder="添加一句话..."
                 value={moodNote}
                 onChange={(e) => setMoodNote(e.target.value)}
               />
               
-              {/* 操作按钮 */}
               <div className="flex gap-2">
                 <Button
                   onClick={handleSaveMood}
@@ -483,7 +578,7 @@ export function JournalPage({ date }: JournalPageProps) {
       </Card>
       
       {/* 自由笔记 */}
-      <Card className="flex-1 border-dashed">
+      <Card className="flex-1 relative z-0 overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">✎ 随手记</CardTitle>
         </CardHeader>

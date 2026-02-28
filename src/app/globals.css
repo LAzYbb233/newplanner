@@ -4,32 +4,58 @@
 
 @layer base {
   :root {
-    --background: 40 20% 98%;
-    --foreground: 240 10% 10%;
-    --card: 42 15% 99%;
-    --card-foreground: 240 10% 10%;
-    --primary: 240 6% 20%;
-    --primary-foreground: 0 0% 98%;
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
-    --border: 30 8% 88%;
-    --ring: 240 6% 20%;
-    --accent: 240 5% 96%;
-    --accent-foreground: 240 6% 20%;
+    /* Neo-Brutalism 配色 */
+    --background: 48 100% 96%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --primary: 0 0% 0%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 60 10% 95%;
+    --muted-foreground: 0 0% 40%;
+    --border: 0 0% 0%;
+    --ring: 0 0% 0%;
+    --accent: 48 100% 90%;
+    --accent-foreground: 0 0% 0%;
+    --content-bg: 48 100% 98%;
+    
+    /* Neo-Brutalism 强调色 */
+    --neo-yellow: 48 96% 53%;
+    --neo-pink: 330 81% 70%;
+    --neo-blue: 199 89% 60%;
+    --neo-green: 142 69% 58%;
+    --neo-orange: 25 95% 53%;
+    --neo-purple: 270 70% 65%;
+    
+    /* 兼容旧变量 */
+    --accent-mint: 142 69% 80%;
+    --accent-lavender: 270 70% 85%;
+    --accent-cream: 48 96% 85%;
   }
+  
   .dark {
-    --background: 240 10% 6%;
+    --background: 240 10% 10%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 8%;
+    --card: 240 10% 15%;
     --card-foreground: 0 0% 98%;
     --primary: 0 0% 98%;
-    --primary-foreground: 240 6% 20%;
-    --muted: 240 4% 16%;
-    --muted-foreground: 240 5% 65%;
-    --border: 240 4% 16%;
-    --ring: 240 5% 84%;
-    --accent: 240 4% 16%;
+    --primary-foreground: 0 0% 0%;
+    --muted: 240 10% 20%;
+    --muted-foreground: 0 0% 70%;
+    --border: 0 0% 98%;
+    --ring: 0 0% 98%;
+    --accent: 48 80% 25%;
     --accent-foreground: 0 0% 98%;
+    --content-bg: 240 10% 12%;
+    --neo-yellow: 48 96% 60%;
+    --neo-pink: 330 81% 65%;
+    --neo-blue: 199 89% 55%;
+    --neo-green: 142 69% 50%;
+    --neo-orange: 25 95% 55%;
+    --neo-purple: 270 70% 60%;
+    --accent-mint: 142 50% 25%;
+    --accent-lavender: 270 50% 30%;
+    --accent-cream: 48 70% 25%;
   }
 }
 
@@ -39,10 +65,74 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+@layer components {
+  .neo-shadow {
+    box-shadow: 4px 4px 0 0 hsl(var(--border));
+  }
+  
+  .neo-shadow-sm {
+    box-shadow: 2px 2px 0 0 hsl(var(--border));
+  }
+  
+  .neo-shadow-lg {
+    box-shadow: 6px 6px 0 0 hsl(var(--border));
+  }
+  
+  .neo-card {
+    @apply border-4 border-foreground bg-card rounded-xl neo-shadow;
+  }
+  
+  .neo-btn {
+    @apply border-4 border-foreground bg-card font-bold neo-shadow transition-all duration-150;
+  }
+  
+  .neo-btn:hover {
+    @apply translate-x-[2px] translate-y-[2px];
+    box-shadow: 2px 2px 0 0 hsl(var(--border));
+  }
+  
+  .neo-btn:active {
+    @apply translate-x-[4px] translate-y-[4px];
+    box-shadow: 0 0 0 0 hsl(var(--border));
+  }
+  
+  .neo-tab {
+    @apply border-4 border-foreground font-bold transition-all duration-150;
+  }
+  
+  .neo-tab-active {
+    @apply bg-[hsl(var(--neo-yellow))];
+  }
+  
+  .neo-input {
+    @apply border-4 border-foreground bg-card rounded-xl px-4 py-2 focus:outline-none focus:ring-0;
   }
 }
 
 @layer utilities {
+  .bg-neo-yellow {
+    background-color: hsl(var(--neo-yellow));
+  }
+  .bg-neo-pink {
+    background-color: hsl(var(--neo-pink));
+  }
+  .bg-neo-blue {
+    background-color: hsl(var(--neo-blue));
+  }
+  .bg-neo-green {
+    background-color: hsl(var(--neo-green));
+  }
+  .bg-neo-orange {
+    background-color: hsl(var(--neo-orange));
+  }
+  .bg-neo-purple {
+    background-color: hsl(var(--neo-purple));
+  }
+  
   .journal-paper {
     background-image: 
       linear-gradient(90deg, hsl(30 20% 95%) 1px, transparent 1px),

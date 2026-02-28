@@ -31,14 +31,14 @@ export default function ProfilePage() {
   };
   
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col relative overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] lg:h-screen flex-col relative overflow-hidden mx-auto max-w-3xl">
       {/* 背景装饰 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-      <div className="absolute top-0 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-accent-lavender/30 via-transparent to-accent-mint/20 pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-64 h-64 bg-accent-lavender/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-accent-cream/20 rounded-full blur-3xl pointer-events-none" />
       
       {/* 顶部标题 */}
-      <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-sm px-4 py-3 z-10 relative">
+      <div className="shrink-0 border-b-2 border-foreground/20 bg-card/80 backdrop-blur-sm px-4 py-3 z-10 relative rounded-b-2xl mx-2 mt-2">
         <div className="flex items-center justify-between mb-2">
           <div>
             <h1 className="text-lg font-semibold flex items-center gap-2">
@@ -49,7 +49,7 @@ export default function ProfilePage() {
               基于你的日程和心情记录的智能陪伴
             </p>
           </div>
-          <div className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+          <div className="text-xs px-3 py-1 rounded-full bg-foreground text-card font-medium">
             {messages.length} 条对话
           </div>
         </div>

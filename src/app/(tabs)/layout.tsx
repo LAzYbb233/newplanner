@@ -1,4 +1,3 @@
-import { BottomNav } from "@/components/layout/BottomNav";
 import { DataLoader } from "@/components/providers/DataLoader";
 
 export default function TabsLayout({
@@ -8,8 +7,9 @@ export default function TabsLayout({
 }) {
   return (
     <DataLoader>
-      <main className="flex-1 pb-20 md:pb-24">{children}</main>
-      <BottomNav />
+      <div className="min-h-screen bg-background">
+        {children}
+      </div>
     </DataLoader>
   );
 }

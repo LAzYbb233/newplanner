@@ -24,19 +24,25 @@ export default function InsightsPage() {
     : 0;
 
   return (
-    <div className="px-4 py-4">
+    <div className="px-4 py-4 mx-auto max-w-2xl lg:py-8">
       <h1 className="mb-4 text-xl font-semibold">数据洞察</h1>
       
       {/* 统计卡片 */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <Card>
-          <CardContent className="pt-4 text-center">
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <Card className="flex overflow-hidden">
+          <div className="w-16 bg-accent-lavender flex items-center justify-center">
+            <span className="text-2xl">💭</span>
+          </div>
+          <CardContent className="flex-1 py-4 text-center">
             <p className="text-2xl font-bold">{totalRecords}</p>
             <p className="text-xs text-muted-foreground">心情记录</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4 text-center">
+        <Card className="flex overflow-hidden">
+          <div className="w-16 bg-accent-mint flex items-center justify-center">
+            <span className="text-2xl">📅</span>
+          </div>
+          <CardContent className="flex-1 py-4 text-center">
             <p className="text-2xl font-bold">{completionRate}%</p>
             <p className="text-xs text-muted-foreground">日程完成率</p>
           </CardContent>
