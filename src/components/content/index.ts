@@ -1,4 +1,3 @@
 export { ScheduleContent } from "./ScheduleContent";
-export { NotesContent } from "./NotesContent";
-export { ChatContent } from "./ChatContent";
+export { InsightContent } from "./InsightContent";
 export { HistoryContent } from "./HistoryContent";
