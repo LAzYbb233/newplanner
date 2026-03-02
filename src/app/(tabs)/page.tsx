@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import { Header } from "@/components/layout/Header";
 import { TabNav, type TabType } from "@/components/layout/TabNav";
 import { ScheduleContent } from "@/components/content/ScheduleContent";
-import { NotesContent } from "@/components/content/NotesContent";
-import { ChatContent } from "@/components/content/ChatContent";
+import { InsightContent } from "@/components/content/InsightContent";
 import { HistoryContent } from "@/components/content/HistoryContent";
 
 export default function HomePage() {
@@ -30,10 +29,8 @@ export default function HomePage() {
             onCloseAddForm={handleCloseAddSchedule} 
           />
         );
-      case "notes":
-        return <NotesContent />;
-      case "chat":
-        return <ChatContent />;
+      case "insight":
+        return <InsightContent />;
       case "history":
         return <HistoryContent />;
       default:

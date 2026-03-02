@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Plus, ChevronLeft, ChevronRight, Sparkles, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ScheduleContentProps {
@@ -51,11 +51,23 @@ export function ScheduleContent({ showAddForm, onCloseAddForm }: ScheduleContent
   const toggleSchedule = useJournalStore((s) => s.toggleSchedule);
   const deleteSchedule = useJournalStore((s) => s.deleteSchedule);
   
+  const todos = useJournalStore((s) => s.todos);
+  const addTodo = useJournalStore((s) => s.addTodo);
+  const toggleTodo = useJournalStore((s) => s.toggleTodo);
+  const deleteTodo = useJournalStore((s) => s.deleteTodo);
+  
+  const pendingTodos = todos.filter((t) => !t.completed);
+  const completedTodos = todos.filter((t) => t.completed);
+  
   const [showInput, setShowInput] = useState(false);
   const [content, setContent] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [hasEndTime, setHasEndTime] = useState(false);
+  
+  const [showTodoInput, setShowTodoInput] = useState(false);
+  const [todoContent, setTodoContent] = useState("");
+  const [showCompletedTodos, setShowCompletedTodos] = useState(false);
   
   useEffect(() => {
     if (showAddForm) {
@@ -89,6 +101,23 @@ export function ScheduleContent({ showAddForm, onCloseAddForm }: ScheduleContent
       onCloseAddForm();
     }
   }, [handleAdd, onCloseAddForm]);
+  
+  const handleAddTodo = useCallback(() => {
+    if (todoContent.trim()) {
+      addTodo(todoContent.trim(), undefined, 'manual');
+      setTodoContent("");
+      setShowTodoInput(false);
+    }
+  }, [todoContent, addTodo]);
+  
+  const handleTodoKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleAddTodo();
+    } else if (e.key === "Escape") {
+      setShowTodoInput(false);
+      setTodoContent("");
+    }
+  }, [handleAddTodo]);
   
   return (
     <div className="space-y-4">
@@ -244,6 +273,130 @@ export function ScheduleContent({ showAddForm, onCloseAddForm }: ScheduleContent
               <Plus className="h-5 w-5" />
               添加日程
             </button>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* 每日待办 */}
+      <Card className="neo-card">
+        <CardHeader className="border-b-4 border-foreground bg-neo-pink rounded-t-lg">
+          <CardTitle className="text-xl font-black flex items-center gap-2">
+            <CheckSquare className="h-5 w-5" />
+            每日待办
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-3">
+          {pendingTodos.length === 0 && !showTodoInput && (
+            <p className="text-muted-foreground py-4">
+              暂无待办事项，添加一些吧！
+            </p>
+          )}
+          
+          {pendingTodos.map((todo) => (
+            <div
+              key={todo.id}
+              className="group flex items-center gap-3 p-3 rounded-lg border-2 border-foreground bg-card neo-shadow-sm"
+            >
+              <Checkbox
+                checked={todo.completed}
+                onCheckedChange={() => toggleTodo(todo.id)}
+                className="h-5 w-5 border-2 border-foreground"
+              />
+              <div className="flex-1 flex items-center gap-2">
+                <span className="font-medium">{todo.title}</span>
+                {todo.source === 'ai' && (
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-neo-blue/20 text-neo-blue font-medium">
+                    <Sparkles className="h-3 w-3" />
+                    AI
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => deleteTodo(todo.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          
+          {showTodoInput && (
+            <div className="space-y-3 p-4 rounded-lg border-4 border-foreground bg-muted/50">
+              <Input
+                value={todoContent}
+                onChange={(e) => setTodoContent(e.target.value)}
+                onKeyDown={handleTodoKeyPress}
+                placeholder="输入待办内容..."
+                className="neo-input"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button onClick={handleAddTodo} className="neo-btn px-4 py-2 rounded-lg bg-neo-green">
+                  保存
+                </button>
+                <button
+                  onClick={() => {
+                    setShowTodoInput(false);
+                    setTodoContent("");
+                  }}
+                  className="neo-btn px-4 py-2 rounded-lg bg-card"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {!showTodoInput && (
+            <button
+              onClick={() => setShowTodoInput(true)}
+              className="neo-btn w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-card"
+            >
+              <Plus className="h-5 w-5" />
+              添加待办
+            </button>
+          )}
+          
+          {/* 已完成的待办 */}
+          {completedTodos.length > 0 && (
+            <div className="pt-2 border-t-2 border-dashed border-foreground/20">
+              <button
+                onClick={() => setShowCompletedTodos(!showCompletedTodos)}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                {showCompletedTodos ? "隐藏" : "显示"} 已完成 ({completedTodos.length})
+              </button>
+              
+              {showCompletedTodos && (
+                <div className="mt-2 space-y-2">
+                  {completedTodos.map((todo) => (
+                    <div
+                      key={todo.id}
+                      className="group flex items-center gap-3 p-2 rounded-lg border border-foreground/20 bg-muted/30"
+                    >
+                      <Checkbox
+                        checked={todo.completed}
+                        onCheckedChange={() => toggleTodo(todo.id)}
+                        className="h-4 w-4 border-2 border-foreground/50"
+                      />
+                      <span className="flex-1 text-sm text-muted-foreground line-through">
+                        {todo.title}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => deleteTodo(todo.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

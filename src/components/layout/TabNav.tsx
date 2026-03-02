@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-export type TabType = "schedule" | "notes" | "chat" | "history";
+export type TabType = "schedule" | "insight" | "history";
 
 interface Tab {
   id: TabType;
@@ -12,9 +12,8 @@ interface Tab {
 
 const tabs: Tab[] = [
   { id: "schedule", label: "日程", color: "bg-neo-yellow" },
-  { id: "notes", label: "随手记", color: "bg-neo-pink" },
-  { id: "chat", label: "对话", color: "bg-neo-blue" },
-  { id: "history", label: "历史", color: "bg-neo-green" },
+  { id: "insight", label: "Insight", color: "bg-neo-pink" },
+  { id: "history", label: "历史记录", color: "bg-neo-green" },
 ];
 
 interface TabNavProps {

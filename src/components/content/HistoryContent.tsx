@@ -10,9 +10,19 @@ function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
+function getFirstDayOfMonth(year: number, month: number): number {
+  return new Date(year, month, 1).getDay();
+}
+
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
+
+function formatDateFromParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 export function HistoryContent() {
   const schedules = useJournalStore((s) => s.schedules);
@@ -31,26 +41,43 @@ export function HistoryContent() {
   const totalNotes = dailyNotes.length;
   const totalChats = messages.filter((m) => m.role === "user").length;
   
-  const heatmapData = useMemo(() => {
-    const days: { date: string; count: number }[] = [];
-    const today = new Date();
+  const calendarData = useMemo(() => {
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
     
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = formatDate(date);
-      
+    const cells: { day: number | null; date: string | null; count: number }[] = [];
+    
+    for (let i = 0; i < firstDay; i++) {
+      cells.push({ day: null, date: null, count: 0 });
+    }
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = formatDateFromParts(year, month, day);
       const scheduleCount = schedules.filter((s) => s.date === dateStr).length;
       const noteCount = dailyNotes.filter((n) => n.date === dateStr).length;
+      const chatCount = messages.filter((m) => {
+        if (m.role !== "user") return false;
+        const msgDate = new Date(m.timestamp);
+        return formatDate(msgDate) === dateStr;
+      }).length;
       
-      days.push({
+      cells.push({
+        day,
         date: dateStr,
-        count: scheduleCount + noteCount,
+        count: scheduleCount + noteCount + chatCount,
       });
     }
     
-    return days;
-  }, [schedules, dailyNotes]);
+    return cells;
+  }, [schedules, dailyNotes, messages, year, month]);
+  
+  const goToPrevMonth = () => {
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+  
+  const goToNextMonth = () => {
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
   
   const getHeatColor = (count: number): string => {
     if (count === 0) return "bg-muted";
@@ -89,22 +116,57 @@ export function HistoryContent() {
         </CardContent>
       </Card>
       
-      {/* 热力图 */}
+      {/* 日历热力图 */}
       <Card className="neo-card">
         <CardHeader>
-          <CardTitle className="text-lg font-bold">30天活动热力图</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-bold">活动日历</CardTitle>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={goToPrevMonth}
+                className="neo-btn p-1.5 rounded-lg bg-card hover:bg-muted"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="font-bold min-w-[100px] text-center">
+                {year}年{month + 1}月
+              </span>
+              <button
+                onClick={goToNextMonth}
+                className="neo-btn p-1.5 rounded-lg bg-card hover:bg-muted"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-10 gap-1">
-            {heatmapData.map((day) => (
-              <div
-                key={day.date}
-                className={`aspect-square rounded border-2 border-foreground ${getHeatColor(day.count)}`}
-                title={`${day.date}: ${day.count} 条记录`}
-              />
-            ))}
+          <div className="border-2 border-foreground rounded-lg overflow-hidden">
+            <div className="grid grid-cols-7 bg-muted">
+              {WEEKDAYS.map((day) => (
+                <div
+                  key={day}
+                  className="text-center text-xs text-muted-foreground font-medium py-2 border-b border-foreground"
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {calendarData.map((cell, index) => (
+                <div
+                  key={index}
+                  className={`h-9 flex items-center justify-center text-xs font-medium border-r border-b border-foreground/20 last:border-r-0 ${
+                    cell.day === null ? "bg-transparent" : getHeatColor(cell.count)
+                  }`}
+                  title={cell.date ? `${cell.date}: ${cell.count} 条记录` : ""}
+                >
+                  {cell.day}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center justify-end gap-2 mt-3 text-xs text-muted-foreground">
+          <div className="flex items-center justify-end gap-2 mt-4 text-xs text-muted-foreground">
             <span>少</span>
             <div className="flex gap-1">
               <div className="w-3 h-3 rounded border border-foreground bg-muted" />

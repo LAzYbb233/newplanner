@@ -1,13 +1,16 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { MoodRecord } from "@/types/mood";
 import type { Schedule } from "@/types/schedule";
 import type { DailyNote } from "@/types/dailyNote";
+import type { TodoItem } from "@/types/todo";
 import {
   getSupabase,
   isSupabaseConfigured,
   type DbSchedule,
   type DbMoodRecord,
   type DbDailyNote,
+  type DbTodo,
 } from "@/lib/supabase";
 
 interface JournalState {
@@ -34,6 +37,13 @@ interface JournalState {
   // Daily Notes
   dailyNotes: DailyNote[];
   updateDailyNote: (date: string, content: string) => Promise<void>;
+
+  // Todos (待办事项)
+  todos: TodoItem[];
+  addTodo: (title: string, dueDate?: string, source?: 'ai' | 'manual') => Promise<void>;
+  toggleTodo: (id: string) => Promise<void>;
+  deleteTodo: (id: string) => Promise<void>;
+  updateTodo: (id: string, title: string, dueDate?: string) => Promise<void>;
 
   // 数据加载
   loadData: () => Promise<void>;
@@ -68,6 +78,17 @@ function dbDailyNoteToDailyNote(db: DbDailyNote): DailyNote {
     date: db.date,
     content: db.content,
     updatedAt: new Date(db.updated_at).getTime(),
+  };
+}
+
+function dbTodoToTodo(db: DbTodo): TodoItem {
+  return {
+    id: db.id,
+    title: db.title,
+    dueDate: db.due_date || undefined,
+    completed: db.completed,
+    source: db.source,
+    createdAt: new Date(db.created_at).getTime(),
   };
 }
 
@@ -150,15 +171,36 @@ const mockDailyNotes: DailyNote[] = [
   },
 ];
 
+const mockTodos: TodoItem[] = [
+  {
+    id: "todo-1",
+    title: "拿快递",
+    completed: false,
+    source: "manual",
+    createdAt: FIXED_NOW - 2 * ONE_HOUR,
+  },
+  {
+    id: "todo-2",
+    title: "回复邮件",
+    dueDate: formatDate(today),
+    completed: true,
+    source: "ai",
+    createdAt: FIXED_NOW - 3 * ONE_HOUR,
+  },
+];
+
 // isSupabaseConfigured 已从 @/lib/supabase 导入
 
-export const useJournalStore = create<JournalState>((set, get) => ({
+export const useJournalStore = create<JournalState>()(
+  persist(
+    (set, get) => ({
   // 初始状态
   isLoading: false,
   isInitialized: false,
   schedules: [],
   records: [],
   dailyNotes: [],
+  todos: [],
 
   // 加载所有数据
   loadData: async () => {
@@ -173,6 +215,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         schedules: mockSchedules,
         records: mockRecords,
         dailyNotes: mockDailyNotes,
+        todos: mockTodos,
         isLoading: false,
         isInitialized: true,
       });
@@ -182,20 +225,23 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     try {
       const client = getSupabase()!;
       // 并行加载所有数据
-      const [schedulesRes, recordsRes, notesRes] = await Promise.all([
+      const [schedulesRes, recordsRes, notesRes, todosRes] = await Promise.all([
         client.from("schedules").select("*").order("created_at", { ascending: false }),
         client.from("mood_records").select("*").order("timestamp", { ascending: false }),
         client.from("daily_notes").select("*").order("updated_at", { ascending: false }),
+        client.from("todos").select("*").order("created_at", { ascending: false }),
       ]);
 
       const schedules = (schedulesRes.data || []).map(dbScheduleToSchedule);
       const records = (recordsRes.data || []).map(dbMoodRecordToMoodRecord);
       const dailyNotes = (notesRes.data || []).map(dbDailyNoteToDailyNote);
+      const todos = (todosRes.data || []).map(dbTodoToTodo);
 
       set({
         schedules,
         records,
         dailyNotes,
+        todos,
         isLoading: false,
         isInitialized: true,
       });
@@ -206,6 +252,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         schedules: mockSchedules,
         records: mockRecords,
         dailyNotes: mockDailyNotes,
+        todos: mockTodos,
         isLoading: false,
         isInitialized: true,
       });
@@ -419,7 +466,151 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       }));
     }
   },
-}));
+
+  // Todos CRUD
+  addTodo: async (title, dueDate, source = 'manual') => {
+    if (!isSupabaseConfigured()) {
+      const newTodo: TodoItem = {
+        id: `todo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        title,
+        dueDate,
+        completed: false,
+        source,
+        createdAt: Date.now(),
+      };
+      set((state) => ({ todos: [newTodo, ...state.todos] }));
+      return;
+    }
+
+    const client = getSupabase()!;
+    const { data, error } = await client
+      .from("todos")
+      .insert({
+        title,
+        due_date: dueDate || null,
+        completed: false,
+        source,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("添加待办失败:", error);
+      // Supabase 失败时回退到本地内存存储
+      const fallbackTodo: TodoItem = {
+        id: `todo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        title,
+        dueDate,
+        completed: false,
+        source,
+        createdAt: Date.now(),
+      };
+      set((state) => ({ todos: [fallbackTodo, ...state.todos] }));
+      return;
+    }
+
+    set((state) => ({
+      todos: [dbTodoToTodo(data), ...state.todos],
+    }));
+  },
+
+  toggleTodo: async (id) => {
+    const todo = get().todos.find((t) => t.id === id);
+    if (!todo) return;
+
+    // 乐观更新
+    set((state) => ({
+      todos: state.todos.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed } : t
+      ),
+    }));
+
+    if (!isSupabaseConfigured()) return;
+
+    const client = getSupabase()!;
+    const { error } = await client
+      .from("todos")
+      .update({ completed: !todo.completed })
+      .eq("id", id);
+
+    if (error) {
+      console.error("切换待办状态失败:", error);
+      // 只有当错误不是"表不存在"时才回滚（表不存在说明使用本地模式，应保留乐观更新）
+      if (error.code !== 'PGRST205') {
+        set((state) => ({
+          todos: state.todos.map((t) =>
+            t.id === id ? { ...t, completed: todo.completed } : t
+          ),
+        }));
+      }
+    }
+  },
+
+  deleteTodo: async (id) => {
+    const todo = get().todos.find((t) => t.id === id);
+
+    // 乐观删除
+    set((state) => ({
+      todos: state.todos.filter((t) => t.id !== id),
+    }));
+
+    if (!isSupabaseConfigured()) return;
+
+    const client = getSupabase()!;
+    const { error } = await client.from("todos").delete().eq("id", id);
+
+    if (error) {
+      console.error("删除待办失败:", error);
+      // 只有当错误不是"表不存在"时才回滚
+      if (error.code !== 'PGRST205' && todo) {
+        set((state) => ({ todos: [todo, ...state.todos] }));
+      }
+    }
+  },
+
+  updateTodo: async (id, title, dueDate) => {
+    const todo = get().todos.find((t) => t.id === id);
+    if (!todo) return;
+
+    // 乐观更新
+    set((state) => ({
+      todos: state.todos.map((t) =>
+        t.id === id ? { ...t, title, dueDate } : t
+      ),
+    }));
+
+    if (!isSupabaseConfigured()) return;
+
+    const client = getSupabase()!;
+    const { error } = await client
+      .from("todos")
+      .update({ title, due_date: dueDate || null })
+      .eq("id", id);
+
+    if (error) {
+      console.error("更新待办失败:", error);
+      // 只有当错误不是"表不存在"时才回滚
+      if (error.code !== 'PGRST205') {
+        set((state) => ({
+          todos: state.todos.map((t) =>
+            t.id === id ? todo : t
+          ),
+        }));
+      }
+    }
+  },
+}),
+    {
+      name: "journal-storage",
+      partialize: (state) => ({
+        todos: state.todos,
+        schedules: state.schedules,
+        records: state.records,
+        dailyNotes: state.dailyNotes,
+      }),
+    }
+  )
+);
 
 // Backward compatibility alias
 export const useMoodStore = useJournalStore;

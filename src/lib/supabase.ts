@@ -110,3 +110,33 @@ export interface DbDailyNote {
   updated_at: string;
   user_id: string;
 }
+
+export interface DbTodo {
+  id: string;
+  title: string;
+  due_date: string | null;
+  completed: boolean;
+  source: 'ai' | 'manual';
+  created_at: string;
+  user_id: string;
+}
+
+export interface DbChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  emotion_type: string | null;
+  emotion_score: number | null;
+  emotion_emoji: string | null;
+  original_input: string | null;
+  created_at: string;
+  user_id: string;
+}
+
+export interface DbPendingAnalysis {
+  id: string;
+  content: string;
+  created_at: string;
+  synced: boolean;
+  user_id: string;
+}
