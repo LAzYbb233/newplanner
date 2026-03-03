@@ -19,8 +19,10 @@ export interface AnalysisResult {
     type: string;
     score: number; // 1-10
     emoji: string;
+    insight?: string; // 情绪背后的心理洞察
   };
   aiResponse: string;
+  reflectiveQuestion?: string; // 自我探索问题
   schedules: Array<{
     title: string;
     datetime: string; // ISO8601
