@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analyzeContent, getMockAnalysisResult } from "@/lib/deepseek";
+import { analyzeContent, getMockAnalysisResult, type ContextData } from "@/lib/deepseek";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { content } = body;
+    const { content, context } = body as { content: unknown; context?: ContextData };
 
     if (!content || typeof content !== "string") {
       return NextResponse.json(
@@ -24,11 +24,11 @@ export async function POST(request: NextRequest) {
 
     if (!apiKey) {
       console.log("DeepSeek API key not configured, using mock response");
-      const mockResult = getMockAnalysisResult(content);
+      const mockResult = getMockAnalysisResult(content, context);
       return NextResponse.json(mockResult);
     }
 
-    const result = await analyzeContent(content, apiKey);
+    const result = await analyzeContent(content, apiKey, context);
     return NextResponse.json(result);
   } catch (error) {
     console.error("Analysis API error:", error);

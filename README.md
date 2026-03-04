@@ -224,6 +224,88 @@ src/
     └── utils.ts
 ```
 
+## 最近更新（v2 产品改进）
+
+### 1. 每日写作提示（InsightContent.tsx）
+
+在 Insight 页面新增「今日一问 ✦」卡片，每天展示一个不同的引导问题，帮助用户破冰冷启动。
+
+- 内置 30 条精心设计的自我探索提示，按年中第几天循环轮换
+- 点击「用这个开始 →」直接发送该提示并触发 AI 分析
+- 仅在**当天还没有发言**时显示（以今日用户消息的时间戳为判断依据）
+- 可手动点击 ✕ 关闭
+
+**关键实现：**
+```tsx
+const hasTodayUserMessage = messages.some(
+  (m) => m.role === "user" &&
+    new Date(m.timestamp).toISOString().split("T")[0] === todayStr
+);
+// 条件：!hasTodayUserMessage && !pendingConfirmation
+```
+
+---
+
+### 2. 情绪趋势图 + 连续记录天数（HistoryContent.tsx）
+
+在 History 页面新增两块可视化内容，将 chatStore 中已有的情绪分数数据真正呈现出来。
+
+**情绪趋势图（近 30 天）：**
+- 使用 Recharts `AreaChart` 绘制折线面积图
+- 每天取最后一条 AI 消息的 `emotionScore` 作为当日情绪值
+- `connectNulls={false}` 确保没有对话的天数折线断开，不做插值
+- 渐变色填充（蓝→绿），无数据时显示引导空状态
+
+**连续记录天数（🔥 Streak）：**
+- 统计连续活跃天数（日程 / 有内容的日记 / 当日发言，三者任一满足即算）
+- 今天若还未记录，从昨天起向前计数
+- 连续 ≥ 7 天显示「🔥 坚持达人」徽章
+
+---
+
+### 3. AI 历史记忆注入（链式修改 3 个文件）
+
+让 AI 在回复时能感知用户的近期情绪状态和今日日程，实现有温度的「记忆感」。
+
+**数据流：** `chatStore` → `/api/analyze` → `deepseek.ts`
+
+| 文件 | 改动 |
+|---|---|
+| `src/lib/deepseek.ts` | 新增 `ContextData` 接口、`buildContextSection()` 函数；`analyzeContent` / `getMockAnalysisResult` 接受可选 `context` 参数 |
+| `src/app/api/analyze/route.ts` | 从请求 body 中解构 `context`，透传给 `analyzeContent` 和 `getMockAnalysisResult` |
+| `src/store/chatStore.ts` | 新增 `buildMessageContext()` 函数，每次发消息时收集近 7 天情绪（最多 5 条）+ 今日日程 + 今日日记，随请求一起发送 |
+
+**注入格式示例（插入 prompt 中）：**
+```
+--- 用户背景（仅供参考，自然融入，不要直接引用）---
+【用户近期情绪】
+  - 3月1日：焦虑（6/10）
+  - 3月3日：平静（7/10）
+
+【今日日程】
+  ○ 14:00 开会
+  ✓ 早上跑步
+---
+```
+
+冷启动时（无历史数据）`buildContextSection` 返回空字符串，prompt 与原版完全相同，无副作用。
+
+---
+
+### 4. 月度自动总结（HistoryContent.tsx）
+
+替换原来的占位符，根据当月真实数据自动生成月度总结。
+
+**展示内容：**
+- 活跃天数（有日程/日记/对话的天数）
+- 平均情绪得分
+- 最常出现的情绪（含 emoji）
+- 日程完成率（无日程时显示 `—`）
+
+当月无情绪记录时显示「暂无数据」空状态，不显示错误数据。同时删除了原有无法实现的「高频词汇」占位符 Card。
+
+---
+
 ## Supabase 数据库表
 
 如果使用 Supabase，需要创建以下表：

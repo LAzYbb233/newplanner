@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ChatMessage, AnalysisConfirmData } from "@/types/chat";
 import type { AnalysisResult } from "@/types/todo";
+import type { ContextData } from "@/lib/deepseek";
 import { useJournalStore } from "./journalStore";
 import {
   getSupabase,
@@ -46,6 +47,43 @@ function dbChatMessageToChatMessage(db: DbChatMessage): ChatMessage {
     emotionScore: db.emotion_score || undefined,
     originalInput: db.original_input || undefined,
   };
+}
+
+function buildMessageContext(): ContextData {
+  const journalStore = useJournalStore.getState();
+  const allMessages = useChatStore.getState().messages;
+  const todayStr = new Date().toISOString().split("T")[0];
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  const recentEmotions = allMessages
+    .filter(
+      (m) =>
+        m.role === "assistant" &&
+        m.emotionScore !== undefined &&
+        m.emotionType !== undefined &&
+        m.timestamp > sevenDaysAgo
+    )
+    .slice(-5)
+    .map((m) => ({
+      date: new Date(m.timestamp).toLocaleDateString("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+      }),
+      type: m.emotionType!,
+      score: m.emotionScore!,
+    }));
+
+  const todaySchedules = journalStore.schedules
+    .filter((s) => s.date === todayStr)
+    .map((s) => ({
+      content: s.content,
+      startTime: s.startTime,
+      completed: s.completed,
+    }));
+
+  const todayNote = journalStore.dailyNotes.find((n) => n.date === todayStr)?.content;
+
+  return { recentEmotions, todaySchedules, todayNote };
 }
 
 function buildContextSummary(): {
@@ -142,11 +180,11 @@ function generateProactiveMessage(): string | null {
   return "你好～有什么想和我分享的吗？我可以帮你分析情绪、记录日程和待办事项。";
 }
 
-async function callAnalyzeAPI(content: string): Promise<AnalysisResult> {
+async function callAnalyzeAPI(content: string, context?: ContextData): Promise<AnalysisResult> {
   const response = await fetch("/api/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, context }),
   });
   
   if (!response.ok) {
@@ -234,7 +272,8 @@ addMessage: async (message) => {
     
     try {
       if (isOnline) {
-        const analysisResult = await callAnalyzeAPI(userMessage);
+        const context = buildMessageContext();
+        const analysisResult = await callAnalyzeAPI(userMessage, context);
         
         const hasSchedulesOrTodos = 
           analysisResult.schedules.length > 0 || 

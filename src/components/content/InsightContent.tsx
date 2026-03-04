@@ -7,6 +7,46 @@ import { Textarea } from "@/components/ui/textarea";
 import { Send, User, Wifi, WifiOff, Sparkles } from "lucide-react";
 import { AnalysisConfirmCard } from "@/components/chat/AnalysisConfirmCard";
 
+const DAILY_PROMPTS: string[] = [
+  "今天有什么让你感到意外的小事吗？",
+  "此刻你身体的哪个部位感到紧绷？",
+  "你今天对自己说了什么话？",
+  "有没有什么话你一直想说，却还没说出口？",
+  "今天什么时候感觉时间过得最快？",
+  "如果今天的心情是一种天气，会是什么？",
+  "你最近一次真心笑是什么时候？",
+  "有什么事情你一直在拖延，但知道它对你很重要？",
+  "今天你照顾了别人，有没有人照顾你？",
+  "此刻你最想做的一件小事是什么？",
+  "最近什么让你感到疲惫，是什么让你还能撑着？",
+  "你觉得现在的自己需要什么？",
+  "今天有没有一个时刻，你感到自己很有力量？",
+  "你对最近的自己满意吗？为什么？",
+  "有什么事情你担心了很久，但其实还没有发生？",
+  "今天谁让你感到温暖了？",
+  "你有没有一直想做但还没开始的事情？",
+  "最近有没有一件小事让你感到意外的开心？",
+  "你上一次放松下来是什么时候？",
+  "如果此刻你可以告诉过去的自己一句话，会是什么？",
+  "今天最让你头疼的事是什么？",
+  "你今天学到了什么，哪怕是很小的一件事？",
+  "你现在的状态，用三个词形容会是什么？",
+  "有没有一个人，你最近一直想联系却没有联系？",
+  "今天有没有什么事情让你觉得值得？",
+  "你现在的生活里，什么是你想要更多的？",
+  "有什么事情是你觉得别人不理解你的？",
+  "你最近做的最勇敢的事情是什么？",
+  "今天有什么声音或画面让你印象深刻？",
+  "如果明天可以只做一件事，你会选择什么？",
+];
+
+function getTodayPrompt(): string {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86400000);
+  return DAILY_PROMPTS[dayOfYear % DAILY_PROMPTS.length];
+}
+
 export function InsightContent() {
   const { 
     messages, 
@@ -21,7 +61,14 @@ export function InsightContent() {
   } = useChatStore();
   
   const [input, setInput] = useState("");
+  const [promptDismissed, setPromptDismissed] = useState(false);
+  const todayPrompt = getTodayPrompt();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const hasTodayUserMessage = messages.some(
+    (m) => m.role === "user" && new Date(m.timestamp).toISOString().split("T")[0] === todayStr
+  );
   
   useEffect(() => {
     if (!isInitialized) {
@@ -97,12 +144,41 @@ export function InsightContent() {
       <Card className="neo-card">
         <CardContent className="py-4">
           <div className="space-y-4 max-h-[450px] overflow-y-auto mb-4">
-            {messages.length === 0 && !pendingConfirmation ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="mb-2">和我聊聊你的想法吧...</p>
-                <p className="text-xs">
-                  试试说：&ldquo;今天真是累死我了，明天下午2点开会&rdquo;
-                </p>
+            {!hasTodayUserMessage && !pendingConfirmation ? (
+              <div className="space-y-3 py-2">
+                {!promptDismissed && (
+                  <div
+                    className="p-3 rounded-lg border-2 border-foreground neo-shadow-sm"
+                    style={{ backgroundColor: "hsl(48 96% 53% / 0.15)" }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs font-bold mb-1.5 text-muted-foreground tracking-wide">
+                          今日一问 ✦
+                        </p>
+                        <p className="text-sm font-medium leading-relaxed">{todayPrompt}</p>
+                      </div>
+                      <button
+                        onClick={() => setPromptDismissed(true)}
+                        className="text-muted-foreground hover:text-foreground text-xs shrink-0 mt-0.5 p-0.5"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => { sendMessage(todayPrompt); setPromptDismissed(true); }}
+                      className="mt-2 text-xs font-bold underline hover:no-underline"
+                    >
+                      用这个开始 →
+                    </button>
+                  </div>
+                )}
+                <div className="text-center py-4 text-muted-foreground">
+                  <p className="mb-2">和我聊聊你的想法吧...</p>
+                  <p className="text-xs">
+                    试试说：&ldquo;今天真是累死我了，明天下午2点开会&rdquo;
+                  </p>
+                </div>
               </div>
             ) : (
               messages.map((msg) => (
